@@ -78,6 +78,17 @@ type Participante = {
   tiempo_ms: number;
 };
 
+// Nuevos tipos para manejar las opciones aleatorias sin perder la correcta
+type OpcionJuego = {
+  texto: string;
+  esCorrecta: boolean;
+};
+
+type PreguntaJuego = {
+  texto: string;
+  opciones: OpcionJuego[];
+};
+
 export default function QuizApp() {
   const [etapa, setEtapa] = useState<
     "inicio" | "juego" | "resultado" | "directorio"
@@ -92,10 +103,10 @@ export default function QuizApp() {
     [],
   );
   const [cargandoDirectorio, setCargandoDirectorio] = useState(false);
-
   const [mostrarAlerta, setMostrarAlerta] = useState(false);
 
-  const [preguntasJuego, setPreguntasJuego] = useState(PREGUNTAS);
+  // El estado de las preguntas ahora usa nuestro nuevo tipo
+  const [preguntasJuego, setPreguntasJuego] = useState<PreguntaJuego[]>([]);
 
   const iniciarJuego = () => {
     if (!nombre.trim()) {
@@ -103,16 +114,32 @@ export default function QuizApp() {
       return;
     }
 
-    const preguntasMezcladas = [...PREGUNTAS];
-    for (let i = preguntasMezcladas.length - 1; i > 0; i--) {
+    // 1. Mapeamos y mezclamos las opciones para CADA pregunta
+    const preguntasMapeadas = PREGUNTAS.map((p) => {
+      const opciones = p.opciones.map((op, index) => ({
+        texto: op,
+        esCorrecta: index === p.correcta,
+      }));
+
+      // Mezclar las opciones
+      for (let i = opciones.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [opciones[i], opciones[j]] = [opciones[j], opciones[i]];
+      }
+
+      return { texto: p.texto, opciones };
+    });
+
+    // 2. Mezclamos el orden de las preguntas
+    for (let i = preguntasMapeadas.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [preguntasMezcladas[i], preguntasMezcladas[j]] = [
-        preguntasMezcladas[j],
-        preguntasMezcladas[i],
+      [preguntasMapeadas[i], preguntasMapeadas[j]] = [
+        preguntasMapeadas[j],
+        preguntasMapeadas[i],
       ];
     }
 
-    setPreguntasJuego(preguntasMezcladas);
+    setPreguntasJuego(preguntasMapeadas);
     setPreguntaActual(0);
     setPuntaje(0);
     setStartTime(new Date().getTime());
@@ -120,8 +147,9 @@ export default function QuizApp() {
   };
 
   const manejarRespuesta = async (indiceSeleccionado: number) => {
+    // Evaluamos directamente la propiedad 'esCorrecta' de la opción seleccionada
     const esCorrecta =
-      indiceSeleccionado === preguntasJuego[preguntaActual].correcta;
+      preguntasJuego[preguntaActual].opciones[indiceSeleccionado].esCorrecta;
     const nuevoPuntaje = esCorrecta ? puntaje + 1 : puntaje;
     setPuntaje(nuevoPuntaje);
 
@@ -150,13 +178,22 @@ export default function QuizApp() {
     setEtapa("directorio");
     setCargandoDirectorio(true);
 
+    // Solo hacemos el select, sin order by, para obtener todo
     const { data, error } = await supabase
       .from("participantes")
-      .select("nombre, tiempo_ms")
-      .order("tiempo_ms", { ascending: true });
+      .select("nombre, tiempo_ms");
 
     if (!error && data) {
-      setListaParticipantes(data);
+      // Mezclamos los participantes aleatoriamente antes de mostrarlos
+      const participantesMezclados = [...data];
+      for (let i = participantesMezclados.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [participantesMezclados[i], participantesMezclados[j]] = [
+          participantesMezclados[j],
+          participantesMezclados[i],
+        ];
+      }
+      setListaParticipantes(participantesMezclados);
     } else {
       console.error("Error al cargar el directorio", error);
     }
@@ -359,7 +396,7 @@ export default function QuizApp() {
                         onClick={() => manejarRespuesta(index)}
                         className="w-full text-left p-4 sm:p-5 rounded-xl bg-white hover:bg-[#f6eedf] border-2 border-[#0b1f3a] text-[#0b1f3a] font-bold text-lg transition-all shadow-[4px_4px_0px_#0b1f3a] hover:shadow-[2px_2px_0px_#0b1f3a] hover:translate-y-[2px]"
                       >
-                        {opcion}
+                        {opcion.texto}
                       </button>
                     ),
                   )}
