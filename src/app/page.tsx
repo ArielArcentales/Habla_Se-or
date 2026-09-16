@@ -522,7 +522,7 @@ export default function QuizApp() {
                   onClick={abrirModalPodio}
                   className="flex-1 bg-[#4ade80] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-xs sm:text-sm uppercase tracking-widest py-3 px-2 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform -rotate-1 hover:rotate-1 transition-all active:translate-y-[2px]"
                 >
-                  👑 Ganadores
+                  Ganadores
                 </button>
               </div>
 
@@ -554,7 +554,7 @@ export default function QuizApp() {
                 <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-3 custom-scrollbar">
                   {cargandoDirectorio ? (
                     <p className="text-center font-bold text-[#0b1f3a]/60 animate-pulse py-10">
-                      Cargando datos...
+                      Cargando datos
                     </p>
                   ) : listaParticipantes.length === 0 ? (
                     <p className="text-center font-bold text-[#0b1f3a]/60 py-10">
@@ -623,7 +623,7 @@ export default function QuizApp() {
                     className="text-4xl font-black text-[#0b1f3a] mb-8 uppercase"
                     style={{ textShadow: "2px 2px 0px #facc15" }}
                   >
-                    🏆 Podio Oficial 🏆
+                    Podio Oficial
                   </h2>
 
                   <div className="flex flex-col gap-4">
@@ -835,14 +835,14 @@ export default function QuizApp() {
                 {/* Nuevo mensaje sobre la revelación en el programa JA */}
                 <div className="mt-4 mb-6 p-4 bg-[#f6eedf] border-2 border-[#0b1f3a] rounded-xl shadow-[4px_4px_0px_#0b1f3a]">
                   <p className="text-[#0b1f3a] font-bold text-sm">
-                    🏆 Los ganadores oficiales se revelarán durante el programa
-                    JA. ¡Mantente atento!
+                    Los ganadores oficiales se revelarán durante el programa JA.
+                    ¡Mantente atento!
                   </p>
                 </div>
 
                 {isSubmitting ? (
                   <div className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold animate-pulse">
-                    Guardando resultado...
+                    Guardando resultado
                   </div>
                 ) : (
                   <div className="inline-block px-4 py-2 bg-[#4ade80] text-[#0b1f3a] border-2 border-[#0b1f3a] shadow-[2px_2px_0px_#0b1f3a] rounded-lg font-bold">
