@@ -113,6 +113,7 @@ export default function QuizApp() {
   // Estados para alertas y modales
   const [mostrarAlerta, setMostrarAlerta] = useState(false);
   const [mostrarModalClave, setMostrarModalClave] = useState(false);
+  const [mostrarInfo, setMostrarInfo] = useState(false); // NUEVO ESTADO PARA INFO
   const [claveIngresada, setClaveIngresada] = useState("");
   const [errorClave, setErrorClave] = useState(false);
 
@@ -206,7 +207,6 @@ export default function QuizApp() {
     setCargandoDirectorio(false);
   };
 
-  // --- LÓGICA DE SEGURIDAD PARA EL PODIO ---
   const abrirModalPodio = () => {
     setClaveIngresada("");
     setErrorClave(false);
@@ -224,7 +224,7 @@ export default function QuizApp() {
 
   const revelarGanadores = async () => {
     setEtapa("podio");
-    setMensajeAnalisis("Conectando con la base de datos...");
+    setMensajeAnalisis("Conectando con la base de datos");
 
     const { data, error } = await supabase
       .from("participantes")
@@ -242,26 +242,135 @@ export default function QuizApp() {
       setPodioGanadores(ganadoresOrdenados.slice(0, 3));
     }
 
+    setTimeout(() => setMensajeAnalisis("Analizando los Puntajes"), 2000);
     setTimeout(
-      () => setMensajeAnalisis("Analizando puntajes de los Conquistadores..."),
-      2000,
-    );
-    setTimeout(
-      () => setMensajeAnalisis("Calculando tiempos de respuesta..."),
+      () => setMensajeAnalisis("Calculando tiempos de respuesta"),
       4000,
     );
-    setTimeout(() => setMensajeAnalisis("Desempatando registros..."), 6000);
-    setTimeout(
-      () => setMensajeAnalisis("Develando lista de jugadores..."),
-      8000,
-    );
+    setTimeout(() => setMensajeAnalisis("Desempatando registros"), 6000);
+    setTimeout(() => setMensajeAnalisis("Develando lista de jugadores"), 8000);
     setTimeout(() => setMensajeAnalisis(""), 10000);
   };
 
   return (
     <main className="min-h-[100dvh] bg-linear-to-br from-[#f6eedf] via-[#e8dcc6] to-[#92c5e9] flex flex-col relative overflow-x-hidden">
+      {/* Botón flotante de Información (Solo en la pantalla de inicio) */}
+      {etapa === "inicio" && (
+        <button
+          onClick={() => setMostrarInfo(true)}
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 bg-white border-2 border-[#0b1f3a] text-[#0b1f3a] w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-[4px_4px_0px_#0b1f3a] transform hover:-translate-y-1 active:translate-y-[2px] active:shadow-[2px_2px_0px_#0b1f3a] transition-all"
+          title="Información y Privacidad"
+        >
+          ℹ️
+        </button>
+      )}
+
       {/* === MODALES FLOTANTES === */}
       <AnimatePresence>
+        {/* Modal: Información y Privacidad */}
+        {mostrarInfo && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b1f3a]/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -20 }}
+              className="w-full max-w-md bg-white p-6 sm:p-8 rounded-3xl shadow-[8px_8px_0px_#92c5e9] border-4 border-[#0b1f3a] relative max-h-[85vh] flex flex-col"
+            >
+              <h2 className="text-2xl font-black text-[#0b1f3a] uppercase tracking-tighter mb-4 text-center">
+                Info y Privacidad
+              </h2>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-5 text-[#0b1f3a]/90 text-sm font-medium text-left">
+                <div>
+                  <h3 className="font-black text-base text-[#0b1f3a] uppercase mb-1">
+                    ¿Cómo funciona la dinámica?
+                  </h3>
+                  <p>
+                    El Quiz ¡Habla, Señor! es una aplicación interactiva de 10
+                    preguntas diseñada para poner a prueba tu atención durante
+                    el sermón del Día Mundial del Conquistador. Lee bien cada
+                    pregunta y selecciona la opción que consideres correcta lo
+                    más rápido posible.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-black text-base text-[#0b1f3a] uppercase mb-1">
+                    ¿Cómo se elige a los ganadores?
+                  </h3>
+                  <p className="mb-2">
+                    El sistema calcula el podio oficial de forma automática y
+                    estricta bajo los siguientes 3 criterios, en orden de
+                    importancia:
+                  </p>
+                  <ul className="list-decimal pl-5 space-y-1">
+                    <li>
+                      <strong className="font-black">Puntaje total:</strong>{" "}
+                      Gana quien tenga la mayor cantidad de respuestas
+                      correctas.
+                    </li>
+                    <li>
+                      <strong className="font-black">Tiempo récord:</strong> En
+                      caso de empate en puntos, el sistema revisará los
+                      milisegundos y dará la victoria a quien haya completado la
+                      prueba en el menor tiempo.
+                    </li>
+                    <li>
+                      <strong className="font-black">Orden de envío:</strong> Si
+                      ocurre un empate exacto tanto en puntos como en
+                      milisegundos, el sistema dará prioridad a la persona que
+                      finalizó y envió su prueba primero (fecha y hora exacta de
+                      creación).
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 className="font-black text-base text-[#0b1f3a] uppercase mb-1">
+                    Política de Privacidad
+                  </h3>
+                  <p className="mb-2">
+                    Para participar, únicamente te solicitamos un nombre y
+                    apellido. Esta aplicación{" "}
+                    <strong className="font-black text-[#dc2626]">
+                      no recopila
+                    </strong>{" "}
+                    correos, contraseñas, ni datos sensibles de tu dispositivo.
+                  </p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>
+                      <strong className="font-black">Uso:</strong> Tu nombre,
+                      puntaje y tiempo se almacenan de forma segura de manera
+                      temporal y se utilizarán{" "}
+                      <strong className="font-black text-[#dc2626]">
+                        exclusivamente
+                      </strong>{" "}
+                      para proyectar a los ganadores durante el programa de la
+                      Iglesia.
+                    </li>
+                    <li>
+                      <strong className="font-black">Protección:</strong> Ningún
+                      dato será compartido con terceros, ni utilizado para fines
+                      comerciales.
+                    </li>
+                  </ul>
+                </div>
+
+                <p className="text-center text-xs text-[#0b1f3a]/60 mt-4 italic font-bold">
+                  Desarrollado con ❤️ por Ariel Arcentales para el Club Gedeón.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setMostrarInfo(false)}
+                className="w-full mt-6 py-3 bg-[#0b1f3a] text-white border-4 border-[#0b1f3a] text-lg font-black rounded-xl shadow-[4px_4px_0px_#0b1f3a] hover:translate-y-[2px] active:translate-y-[4px] active:shadow-none transition-all uppercase tracking-wider"
+              >
+                Entendido
+              </button>
+            </motion.div>
+          </div>
+        )}
+
         {/* Modal: Falta de Nombre */}
         {mostrarAlerta && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b1f3a]/70 backdrop-blur-sm">
@@ -302,12 +411,12 @@ export default function QuizApp() {
                 Acceso Restringido
               </h2>
               <p className="text-[#0b1f3a]/80 font-bold mb-6 text-sm">
-                Ingresa la clave de administrador para revelar el podio oficial.
+                Ingresa la clave para revelar el podio oficial.
               </p>
 
               <input
                 type="password"
-                placeholder="Contraseña..."
+                placeholder="Contraseña"
                 value={claveIngresada}
                 onChange={(e) => {
                   setClaveIngresada(e.target.value);
@@ -410,7 +519,7 @@ export default function QuizApp() {
                   onClick={abrirModalPodio}
                   className="flex-1 bg-[#4ade80] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-xs sm:text-sm uppercase tracking-widest py-3 px-2 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform -rotate-1 hover:rotate-1 transition-all active:translate-y-[2px]"
                 >
-                  👑 Ganadores
+                  Ganadores
                 </button>
               </div>
 
@@ -442,7 +551,7 @@ export default function QuizApp() {
                 <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-3 custom-scrollbar">
                   {cargandoDirectorio ? (
                     <p className="text-center font-bold text-[#0b1f3a]/60 animate-pulse py-10">
-                      Cargando datos...
+                      Cargando datos.
                     </p>
                   ) : listaParticipantes.length === 0 ? (
                     <p className="text-center font-bold text-[#0b1f3a]/60 py-10">
@@ -511,7 +620,7 @@ export default function QuizApp() {
                     className="text-4xl font-black text-[#0b1f3a] mb-8 uppercase"
                     style={{ textShadow: "2px 2px 0px #facc15" }}
                   >
-                    🏆 Podio Oficial 🏆
+                    Podio Oficial
                   </h2>
 
                   <div className="flex flex-col gap-4">
@@ -632,7 +741,7 @@ export default function QuizApp() {
               className="w-full max-w-md flex flex-col items-center"
             >
               <img
-                src="/dia-mundial.png"
+                src="/dia-mundial.jpg"
                 alt="Día Mundial"
                 className="w-20 sm:w-24 mb-6 rounded-xl shadow-md border-2 border-[#0b1f3a]"
               />
@@ -718,7 +827,7 @@ export default function QuizApp() {
 
                 {isSubmitting ? (
                   <div className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold animate-pulse mb-6">
-                    Guardando resultado...
+                    Guardando resultado
                   </div>
                 ) : (
                   <div className="inline-block px-4 py-2 bg-[#facc15] text-[#0b1f3a] border-2 border-[#0b1f3a] shadow-[2px_2px_0px_#0b1f3a] rounded-lg font-bold mb-6">
@@ -742,7 +851,7 @@ export default function QuizApp() {
           IASD Comité del Pueblo
         </p>
         <p className="text-[#0b1f3a]/75 font-bold text-[10px] sm:text-[11px]">
-          © 2026 • Dev Ariel Arcentales
+          © 2026 • Ariel Arcentales
         </p>
       </footer>
     </main>
