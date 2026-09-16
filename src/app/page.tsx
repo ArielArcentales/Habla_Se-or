@@ -62,7 +62,7 @@ const PREGUNTAS = [
   },
   {
     texto: "¿En qué año fue fundado oficialmente nuestro Club Gedeón?",
-    opciones: ["2012", "[PONER_AÑO_CORRECTO]", "2018"],
+    opciones: ["1997", "1987", "2005"],
     correcta: 1,
   },
   {
@@ -117,7 +117,7 @@ export default function QuizApp() {
   // Estados para alertas y modales
   const [mostrarAlerta, setMostrarAlerta] = useState(false);
   const [mostrarModalClave, setMostrarModalClave] = useState(false);
-  const [mostrarInfo, setMostrarInfo] = useState(false); // NUEVO ESTADO PARA INFO
+  const [mostrarInfo, setMostrarInfo] = useState(false);
   const [claveIngresada, setClaveIngresada] = useState("");
   const [errorClave, setErrorClave] = useState(false);
 
@@ -323,8 +323,7 @@ export default function QuizApp() {
                       <strong className="font-black">Orden de envío:</strong> Si
                       ocurre un empate exacto tanto en puntos como en
                       milisegundos, el sistema dará prioridad a la persona que
-                      finalizó y envió su prueba primero (fecha y hora exacta de
-                      creación).
+                      finalizó y envió su prueba primero.
                     </li>
                   </ul>
                 </div>
@@ -523,7 +522,7 @@ export default function QuizApp() {
                   onClick={abrirModalPodio}
                   className="flex-1 bg-[#4ade80] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-xs sm:text-sm uppercase tracking-widest py-3 px-2 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform -rotate-1 hover:rotate-1 transition-all active:translate-y-[2px]"
                 >
-                  Ganadores
+                  👑 Ganadores
                 </button>
               </div>
 
@@ -555,7 +554,7 @@ export default function QuizApp() {
                 <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-3 custom-scrollbar">
                   {cargandoDirectorio ? (
                     <p className="text-center font-bold text-[#0b1f3a]/60 animate-pulse py-10">
-                      Cargando datos.
+                      Cargando datos...
                     </p>
                   ) : listaParticipantes.length === 0 ? (
                     <p className="text-center font-bold text-[#0b1f3a]/60 py-10">
@@ -624,7 +623,7 @@ export default function QuizApp() {
                     className="text-4xl font-black text-[#0b1f3a] mb-8 uppercase"
                     style={{ textShadow: "2px 2px 0px #facc15" }}
                   >
-                    Podio Oficial
+                    🏆 Podio Oficial 🏆
                   </h2>
 
                   <div className="flex flex-col gap-4">
@@ -808,6 +807,10 @@ export default function QuizApp() {
                   ¡Prueba Finalizada!
                 </h2>
 
+                <p className="text-[#0b1f3a]/80 font-bold mb-2">
+                  ¡Gracias por participar!
+                </p>
+
                 <div className="bg-[#0b1f3a] rounded-2xl p-6 mb-6 text-white border-b-8 border-[#153259] mt-6 relative">
                   <p className="text-[#facc15] text-sm font-bold uppercase tracking-widest mb-1">
                     Tu Puntaje
@@ -829,16 +832,32 @@ export default function QuizApp() {
                   </p>
                 </div>
 
+                {/* Nuevo mensaje sobre la revelación en el programa JA */}
+                <div className="mt-4 mb-6 p-4 bg-[#f6eedf] border-2 border-[#0b1f3a] rounded-xl shadow-[4px_4px_0px_#0b1f3a]">
+                  <p className="text-[#0b1f3a] font-bold text-sm">
+                    🏆 Los ganadores oficiales se revelarán durante el programa
+                    JA. ¡Mantente atento!
+                  </p>
+                </div>
+
                 {isSubmitting ? (
-                  <div className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold animate-pulse mb-6">
-                    Guardando resultado
+                  <div className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold animate-pulse">
+                    Guardando resultado...
                   </div>
                 ) : (
-                  <div className="inline-block px-4 py-2 bg-[#facc15] text-[#0b1f3a] border-2 border-[#0b1f3a] shadow-[2px_2px_0px_#0b1f3a] rounded-lg font-bold mb-6">
+                  <div className="inline-block px-4 py-2 bg-[#4ade80] text-[#0b1f3a] border-2 border-[#0b1f3a] shadow-[2px_2px_0px_#0b1f3a] rounded-lg font-bold">
                     ¡Resultado guardado con éxito!
                   </div>
                 )}
               </div>
+
+              {/* Botón para ver los participantes en lugar de los ganadores */}
+              <button
+                onClick={verDirectorio}
+                className="mt-6 w-[80%] bg-[#d76118] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-sm uppercase tracking-widest py-3 px-6 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform rotate-2 hover:-rotate-1 transition-all active:translate-y-[2px]"
+              >
+                Ver Participantes
+              </button>
 
               <img
                 src="/conquis.png"
@@ -855,7 +874,7 @@ export default function QuizApp() {
           IASD Comité del Pueblo
         </p>
         <p className="text-[#0b1f3a]/75 font-bold text-[10px] sm:text-[11px]">
-          © 2026 • Ariel Arcentales
+          © 2026 • Dev Ariel Arcentales
         </p>
       </footer>
     </main>
