@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./lib/supabase";
 
+// --- BANCO DE PREGUNTAS ---
 const PREGUNTAS = [
   {
     texto: "¿Quién llamó a Samuel cuando estaba a punto de dormir?",
@@ -76,9 +77,10 @@ const PREGUNTAS = [
 type Participante = {
   nombre: string;
   tiempo_ms: number;
+  puntaje?: number;
+  creado_en?: string;
 };
 
-// Nuevos tipos para manejar las opciones aleatorias sin perder la correcta
 type OpcionJuego = {
   texto: string;
   esCorrecta: boolean;
@@ -89,9 +91,12 @@ type PreguntaJuego = {
   opciones: OpcionJuego[];
 };
 
+// CLAVE MAESTRA PARA REVELAR GANADORES
+const CLAVE_ADMIN = "GedeonDev21!";
+
 export default function QuizApp() {
   const [etapa, setEtapa] = useState<
-    "inicio" | "juego" | "resultado" | "directorio"
+    "inicio" | "juego" | "resultado" | "directorio" | "podio"
   >("inicio");
   const [nombre, setNombre] = useState("");
   const [preguntaActual, setPreguntaActual] = useState(0);
@@ -99,13 +104,22 @@ export default function QuizApp() {
   const [startTime, setStartTime] = useState<number>(0);
   const [tiempoFinal, setTiempoFinal] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [listaParticipantes, setListaParticipantes] = useState<Participante[]>(
     [],
   );
   const [cargandoDirectorio, setCargandoDirectorio] = useState(false);
-  const [mostrarAlerta, setMostrarAlerta] = useState(false);
 
-  // El estado de las preguntas ahora usa nuestro nuevo tipo
+  // Estados para alertas y modales
+  const [mostrarAlerta, setMostrarAlerta] = useState(false);
+  const [mostrarModalClave, setMostrarModalClave] = useState(false);
+  const [claveIngresada, setClaveIngresada] = useState("");
+  const [errorClave, setErrorClave] = useState(false);
+
+  // Estados para el podio en vivo
+  const [mensajeAnalisis, setMensajeAnalisis] = useState("");
+  const [podioGanadores, setPodioGanadores] = useState<Participante[]>([]);
+
   const [preguntasJuego, setPreguntasJuego] = useState<PreguntaJuego[]>([]);
 
   const iniciarJuego = () => {
@@ -114,23 +128,18 @@ export default function QuizApp() {
       return;
     }
 
-    // 1. Mapeamos y mezclamos las opciones para CADA pregunta
     const preguntasMapeadas = PREGUNTAS.map((p) => {
       const opciones = p.opciones.map((op, index) => ({
         texto: op,
         esCorrecta: index === p.correcta,
       }));
-
-      // Mezclar las opciones
       for (let i = opciones.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [opciones[i], opciones[j]] = [opciones[j], opciones[i]];
       }
-
       return { texto: p.texto, opciones };
     });
 
-    // 2. Mezclamos el orden de las preguntas
     for (let i = preguntasMapeadas.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [preguntasMapeadas[i], preguntasMapeadas[j]] = [
@@ -147,7 +156,6 @@ export default function QuizApp() {
   };
 
   const manejarRespuesta = async (indiceSeleccionado: number) => {
-    // Evaluamos directamente la propiedad 'esCorrecta' de la opción seleccionada
     const esCorrecta =
       preguntasJuego[preguntaActual].opciones[indiceSeleccionado].esCorrecta;
     const nuevoPuntaje = esCorrecta ? puntaje + 1 : puntaje;
@@ -178,13 +186,11 @@ export default function QuizApp() {
     setEtapa("directorio");
     setCargandoDirectorio(true);
 
-    // Solo hacemos el select, sin order by, para obtener todo
     const { data, error } = await supabase
       .from("participantes")
       .select("nombre, tiempo_ms");
 
     if (!error && data) {
-      // Mezclamos los participantes aleatoriamente antes de mostrarlos
       const participantesMezclados = [...data];
       for (let i = participantesMezclados.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -200,9 +206,63 @@ export default function QuizApp() {
     setCargandoDirectorio(false);
   };
 
+  // --- LÓGICA DE SEGURIDAD PARA EL PODIO ---
+  const abrirModalPodio = () => {
+    setClaveIngresada("");
+    setErrorClave(false);
+    setMostrarModalClave(true);
+  };
+
+  const validarClaveYRevelar = () => {
+    if (claveIngresada === CLAVE_ADMIN) {
+      setMostrarModalClave(false);
+      revelarGanadores();
+    } else {
+      setErrorClave(true);
+    }
+  };
+
+  const revelarGanadores = async () => {
+    setEtapa("podio");
+    setMensajeAnalisis("Conectando con la base de datos...");
+
+    const { data, error } = await supabase
+      .from("participantes")
+      .select("nombre, puntaje, tiempo_ms, creado_en");
+
+    if (!error && data) {
+      const ganadoresOrdenados = data.sort((a, b) => {
+        if (b.puntaje !== a.puntaje) return b.puntaje - a.puntaje;
+        if (a.tiempo_ms !== b.tiempo_ms) return a.tiempo_ms - b.tiempo_ms;
+        return (
+          new Date(a.creado_en!).getTime() - new Date(b.creado_en!).getTime()
+        );
+      });
+
+      setPodioGanadores(ganadoresOrdenados.slice(0, 3));
+    }
+
+    setTimeout(
+      () => setMensajeAnalisis("Analizando puntajes de los Conquistadores..."),
+      2000,
+    );
+    setTimeout(
+      () => setMensajeAnalisis("Calculando tiempos de respuesta..."),
+      4000,
+    );
+    setTimeout(() => setMensajeAnalisis("Desempatando registros..."), 6000);
+    setTimeout(
+      () => setMensajeAnalisis("Develando lista de jugadores..."),
+      8000,
+    );
+    setTimeout(() => setMensajeAnalisis(""), 10000);
+  };
+
   return (
     <main className="min-h-[100dvh] bg-linear-to-br from-[#f6eedf] via-[#e8dcc6] to-[#92c5e9] flex flex-col relative overflow-x-hidden">
+      {/* === MODALES FLOTANTES === */}
       <AnimatePresence>
+        {/* Modal: Falta de Nombre */}
         {mostrarAlerta && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b1f3a]/70 backdrop-blur-sm">
             <motion.div
@@ -227,6 +287,61 @@ export default function QuizApp() {
             </motion.div>
           </div>
         )}
+
+        {/* Modal: Clave de Administrador */}
+        {mostrarModalClave && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b1f3a]/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -20 }}
+              className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-[8px_8px_0px_#4ade80] border-4 border-[#0b1f3a] text-center relative"
+            >
+              <div className="text-5xl mb-4">🔐</div>
+              <h2 className="text-2xl font-black text-[#0b1f3a] uppercase tracking-tighter mb-2">
+                Acceso Restringido
+              </h2>
+              <p className="text-[#0b1f3a]/80 font-bold mb-6 text-sm">
+                Ingresa la clave de administrador para revelar el podio oficial.
+              </p>
+
+              <input
+                type="password"
+                placeholder="Contraseña..."
+                value={claveIngresada}
+                onChange={(e) => {
+                  setClaveIngresada(e.target.value);
+                  setErrorClave(false);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && validarClaveYRevelar()}
+                className="w-full p-4 mb-2 rounded-xl bg-[#f6eedf] border-2 border-[#0b1f3a] text-[#0b1f3a] font-black text-center text-lg focus:outline-none focus:ring-4 focus:ring-[#4ade80]/50 transition-all tracking-widest"
+              />
+
+              <div className="h-6 mb-2 flex items-center justify-center">
+                {errorClave && (
+                  <p className="text-[#dc2626] font-bold text-sm animate-bounce">
+                    Clave incorrecta
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-2">
+                <button
+                  onClick={() => setMostrarModalClave(false)}
+                  className="flex-1 py-3 bg-[#e8dcc6] text-[#0b1f3a] border-2 border-[#0b1f3a] text-sm font-black rounded-xl shadow-[4px_4px_0px_#0b1f3a] hover:translate-y-[2px] transition-all uppercase"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={validarClaveYRevelar}
+                  className="flex-1 py-3 bg-[#4ade80] text-[#0b1f3a] border-2 border-[#0b1f3a] text-sm font-black rounded-xl shadow-[4px_4px_0px_#0b1f3a] hover:translate-y-[2px] transition-all uppercase"
+                >
+                  Ingresar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       <div
@@ -239,6 +354,7 @@ export default function QuizApp() {
 
       <div className="flex-1 flex flex-col items-center justify-center w-full z-10 px-4 py-8 mt-4 sm:mt-8">
         <AnimatePresence mode="wait">
+          {/* === PANTALLA DE INICIO === */}
           {etapa === "inicio" && (
             <motion.div
               key="inicio"
@@ -260,7 +376,6 @@ export default function QuizApp() {
                 >
                   ¡Habla, Señor!
                 </h1>
-
                 <p className="text-[#0b1f3a]/80 font-medium mb-6 text-base sm:text-lg mt-2">
                   Demuestra qué tan atento estuviste al sermón. ¡El más rápido y
                   preciso gana!
@@ -283,12 +398,21 @@ export default function QuizApp() {
                 </button>
               </div>
 
-              <button
-                onClick={verDirectorio}
-                className="mt-6 w-[80%] bg-[#d76118] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-sm uppercase tracking-widest py-3 px-6 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform rotate-2 hover:-rotate-1 transition-all active:translate-y-[2px] active:shadow-[2px_2px_0px_#0b1f3a]"
-              >
-                Participantes
-              </button>
+              {/* Botones secundarios */}
+              <div className="flex w-[80%] gap-3 mt-6">
+                <button
+                  onClick={verDirectorio}
+                  className="flex-1 bg-[#d76118] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-xs sm:text-sm uppercase tracking-widest py-3 px-2 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform rotate-1 hover:-rotate-1 transition-all active:translate-y-[2px]"
+                >
+                  Participantes
+                </button>
+                <button
+                  onClick={abrirModalPodio}
+                  className="flex-1 bg-[#4ade80] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-xs sm:text-sm uppercase tracking-widest py-3 px-2 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform -rotate-1 hover:rotate-1 transition-all active:translate-y-[2px]"
+                >
+                  👑 Ganadores
+                </button>
+              </div>
 
               <img
                 src="/conquis.png"
@@ -297,6 +421,8 @@ export default function QuizApp() {
               />
             </motion.div>
           )}
+
+          {/* === PANTALLA DEL DIRECTORIO === */}
           {etapa === "directorio" && (
             <motion.div
               key="directorio"
@@ -355,6 +481,148 @@ export default function QuizApp() {
             </motion.div>
           )}
 
+          {/* === PANTALLA DE PODIO (GANADORES EN VIVO) === */}
+          {etapa === "podio" && (
+            <motion.div
+              key="podio"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full max-w-lg flex flex-col items-center justify-center min-h-[60vh]"
+            >
+              {mensajeAnalisis ? (
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className="bg-white p-10 rounded-3xl border-4 border-[#0b1f3a] shadow-[10px_10px_0px_#facc15] text-center w-full max-w-md relative z-10"
+                >
+                  <div className="w-16 h-16 border-8 border-[#e8dcc6] border-t-[#0b1f3a] rounded-full animate-spin mx-auto mb-6"></div>
+                  <h2 className="text-2xl font-black text-[#0b1f3a] uppercase tracking-wider animate-pulse">
+                    {mensajeAnalisis}
+                  </h2>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="w-full bg-white p-6 sm:p-8 rounded-3xl shadow-[0_20px_50px_rgba(11,31,58,0.3)] border-4 border-[#0b1f3a] text-center relative z-10"
+                >
+                  <h2
+                    className="text-4xl font-black text-[#0b1f3a] mb-8 uppercase"
+                    style={{ textShadow: "2px 2px 0px #facc15" }}
+                  >
+                    🏆 Podio Oficial 🏆
+                  </h2>
+
+                  <div className="flex flex-col gap-4">
+                    {podioGanadores[0] && (
+                      <motion.div
+                        initial={{ x: -100, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="bg-[#facc15] p-5 rounded-2xl border-4 border-[#0b1f3a] shadow-[6px_6px_0px_#0b1f3a] relative overflow-hidden transform hover:-translate-y-1 transition-transform"
+                      >
+                        <div className="absolute -right-4 -top-4 text-6xl opacity-20">
+                          👑
+                        </div>
+                        <div className="flex justify-between items-center relative z-10">
+                          <div className="text-left">
+                            <span className="text-[#0b1f3a] font-black text-sm uppercase tracking-widest">
+                              1º Lugar
+                            </span>
+                            <h3 className="text-2xl font-black text-[#0b1f3a] uppercase">
+                              {podioGanadores[0].nombre}
+                            </h3>
+                          </div>
+                          <div className="text-right bg-white px-3 py-1 rounded-lg border-2 border-[#0b1f3a]">
+                            <p className="text-[#0b1f3a] font-black text-xl">
+                              {podioGanadores[0].puntaje} pts
+                            </p>
+                            <p className="text-[#dc2626] font-bold text-sm">
+                              {(podioGanadores[0].tiempo_ms / 1000).toFixed(2)}s
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {podioGanadores[1] && (
+                      <motion.div
+                        initial={{ x: -100, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 1 }}
+                        className="bg-[#e2e8f0] p-4 rounded-2xl border-4 border-[#0b1f3a] shadow-[4px_4px_0px_#0b1f3a] ml-4"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="text-left">
+                            <span className="text-[#0b1f3a]/60 font-black text-xs uppercase tracking-widest">
+                              2º Lugar
+                            </span>
+                            <h3 className="text-xl font-black text-[#0b1f3a] uppercase">
+                              {podioGanadores[1].nombre}
+                            </h3>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[#0b1f3a] font-black">
+                              {podioGanadores[1].puntaje} pts
+                            </p>
+                            <p className="text-[#0b1f3a]/70 font-bold text-xs">
+                              {(podioGanadores[1].tiempo_ms / 1000).toFixed(2)}s
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {podioGanadores[2] && (
+                      <motion.div
+                        initial={{ x: -100, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 1.5 }}
+                        className="bg-[#d76118] p-4 rounded-2xl border-4 border-[#0b1f3a] shadow-[4px_4px_0px_#0b1f3a] ml-8"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div className="text-left">
+                            <span className="text-white/90 font-black text-xs uppercase tracking-widest">
+                              3º Lugar
+                            </span>
+                            <h3 className="text-lg font-black text-white uppercase">
+                              {podioGanadores[2].nombre}
+                            </h3>
+                          </div>
+                          <div className="text-right text-white">
+                            <p className="font-black">
+                              {podioGanadores[2].puntaje} pts
+                            </p>
+                            <p className="font-bold text-xs text-white/90">
+                              {(podioGanadores[2].tiempo_ms / 1000).toFixed(2)}s
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => setEtapa("inicio")}
+                    className="mt-8 w-full py-3 bg-[#0b1f3a] text-white border-2 border-[#0b1f3a] text-sm font-black rounded-xl transition-all hover:bg-slate-800 uppercase tracking-widest"
+                  >
+                    Cerrar Podio
+                  </button>
+                </motion.div>
+              )}
+
+              {!mensajeAnalisis && (
+                <img
+                  src="/conquis.png"
+                  alt="Conquistadores"
+                  className="w-24 sm:w-28 mt-8 drop-shadow-xl relative z-10"
+                />
+              )}
+            </motion.div>
+          )}
+
+          {/* === PANTALLA DE JUEGO === */}
           {etapa === "juego" && (
             <motion.div
               key="juego"
@@ -411,6 +679,7 @@ export default function QuizApp() {
             </motion.div>
           )}
 
+          {/* === PANTALLA DE RESULTADOS === */}
           {etapa === "resultado" && (
             <motion.div
               key="resultado"
@@ -449,7 +718,7 @@ export default function QuizApp() {
 
                 {isSubmitting ? (
                   <div className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold animate-pulse mb-6">
-                    Guardando resultado
+                    Guardando resultado...
                   </div>
                 ) : (
                   <div className="inline-block px-4 py-2 bg-[#facc15] text-[#0b1f3a] border-2 border-[#0b1f3a] shadow-[2px_2px_0px_#0b1f3a] rounded-lg font-bold mb-6">
@@ -457,13 +726,6 @@ export default function QuizApp() {
                   </div>
                 )}
               </div>
-
-              <button
-                onClick={verDirectorio}
-                className="mt-6 w-[80%] bg-[#dc2626] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-sm uppercase tracking-widest py-3 px-6 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform rotate-2 hover:-rotate-1 transition-all active:translate-y-[2px] active:shadow-[2px_2px_0px_#0b1f3a]"
-              >
-                Ver Registro en vivo
-              </button>
 
               <img
                 src="/conquis.png"
@@ -480,7 +742,7 @@ export default function QuizApp() {
           IASD Comité del Pueblo
         </p>
         <p className="text-[#0b1f3a]/75 font-bold text-[10px] sm:text-[11px]">
-          © 2026 • Ariel Arcentales
+          © 2026 • Dev Ariel Arcentales
         </p>
       </footer>
     </main>
