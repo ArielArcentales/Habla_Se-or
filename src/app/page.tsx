@@ -7,69 +7,73 @@ import { supabase } from "./lib/supabase";
 // --- BANCO DE PREGUNTAS ---
 const PREGUNTAS = [
   {
-    texto: "¿Quién llamó a Samuel cuando estaba a punto de dormir?",
-    opciones: ["Elí", "Su mamá Ana", "Dios"],
-    correcta: 2,
-  },
-  {
-    texto: "¿Qué edad aproximada tenía Samuel cuando Dios le habló?",
-    opciones: ["8 años", "10 años", "12 años"],
+    texto:
+      "¿Quién le habló a Samuel cuando era un niño y estaba acostado en el templo?",
+    opciones: ["El sacerdote Elí", "Su madre Ana", "La voz de Dios"],
     correcta: 2,
   },
   {
     texto:
-      "¿Quién era el mentor que le enseñó a Samuel a identificar la voz de Dios?",
-    opciones: ["David", "Elí", "Naamán"],
+      "¿Quién fue el mentor que le enseñó a Samuel a reconocer que era Dios quien lo llamaba?",
+    opciones: ["El profeta Natán", "El sumo sacerdote Elí", "Su padre Elcana"],
     correcta: 1,
   },
   {
-    texto: "¿Qué frase dijo la joven María al aceptar el llamado de Dios?",
+    texto:
+      "¿Qué respuesta exacta le indicó Elí a Samuel que debía darle a Dios la próxima vez que lo llamara?",
     opciones: [
-      "¡Habla, Señor!",
-      "La batalla es del Señor",
-      "Aquí está la sierva del Señor",
+      '"Aquí estoy, Señor, dime qué quieres"',
+      '"Habla, Señor, porque tu siervo oye"',
+      '"Heme aquí, envíame a mí"',
+    ],
+    correcta: 1,
+  },
+  {
+    texto:
+      "¿Cómo se llamaba la madre de Samuel, quien lo dedicó al servicio del templo?",
+    opciones: ["Abigaíl", "Ana", "Elisabet"],
+    correcta: 1,
+  },
+  {
+    texto:
+      "¿Cuál fue la actitud principal de la joven María al aceptar el llamado de Dios?",
+    opciones: [
+      "Miedo y duda constante",
+      "Indiferencia ante el mensaje",
+      "Sumisión y disposición total",
     ],
     correcta: 2,
   },
   {
-    texto: "¿Cuál es la respuesta que TODOS debemos dar cuando Dios nos llama?",
-    opciones: ["Yo iré", "Habla, Señor, porque tu siervo oye", "Aquí estoy"],
-    correcta: 1,
-  },
-  {
     texto:
-      "Según el relato (2 Crónicas 34), ¿a qué edad comenzó a reinar Josías antes de derribar los ídolos?",
-    opciones: ["8 años", "15 años", "20 años"],
+      "Según el relato de 2 Crónicas 34 (mencionado en el sermón), ¿a qué edad comenzó a reinar el rey Josías antes de buscar a Dios?",
+    opciones: ["8 años", "12 años", "16 años"],
     correcta: 0,
   },
   {
     texto:
-      "Según el libro Patriarcas y Profetas, ¿qué hacía Ana desde que Samuel dio sus primeras muestras de inteligencia?",
+      "Según el libro Patriarcas y Profetas (citado en el sermón), ¿qué aspecto fundamental cuidaba Ana en la educación temprana de Samuel?",
     opciones: [
-      "Le enseñó a orar de rodillas 3 veces al día",
-      "Le enseñó a considerarse a sí mismo como del Señor",
-      "Le hizo prometer que nunca saldría del templo",
+      "Que aprendiera a tocar el arpa perfectamente para los cultos",
+      "Que se considerara a sí mismo como propiedad de Dios",
+      "Que memorizara todo el Pentateuco antes de los 5 años",
     ],
     correcta: 1,
   },
   {
     texto: "¿En qué año fue fundado oficialmente nuestro Club Gedeón?",
-    opciones: ["2015", "[PONER_AÑO_CORRECTO]", "2010"],
-    correcta: 1,
-  },
-  {
-    texto: "¿Quiénes han sido los últimos 3 directores del Club Gedeón?",
-    opciones: [
-      "Dir 1, Dir 2, Dir 3",
-      "[NOMBRES_CORRECTOS_AQUI]",
-      "Dir 4, Dir 5, Dir 6",
-    ],
+    opciones: ["2012", "[PONER_AÑO_CORRECTO]", "2018"],
     correcta: 1,
   },
   {
     texto:
-      "¿Cuántos años tiene el desarrollador de esta aplicación (Dev Ariel)?",
-    opciones: ["19 años", "21 años", "23 años"],
+      "¿Con cuántos hombres se quedó Gedeón para derrotar al ejército de los madianitas según la Biblia?",
+    opciones: ["100 hombres", "300 hombres", "500 hombres"],
+    correcta: 1,
+  },
+  {
+    texto: "¿Cuántos años tiene el predicador (Ariel)?",
+    opciones: ["20 años", "21 años", "22 años"],
     correcta: 1,
   },
 ];
@@ -741,7 +745,7 @@ export default function QuizApp() {
               className="w-full max-w-md flex flex-col items-center"
             >
               <img
-                src="/dia-mundial.jpg"
+                src="/dia-mundial.png"
                 alt="Día Mundial"
                 className="w-20 sm:w-24 mb-6 rounded-xl shadow-md border-2 border-[#0b1f3a]"
               />
