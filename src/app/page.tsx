@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "./lib/supabase";
 
@@ -95,7 +95,7 @@ type PreguntaJuego = {
   opciones: OpcionJuego[];
 };
 
-// CLAVE MAESTRA PARA REVELAR GANADORES
+// CLAVE MAESTRA PARA ADMINISTRACIÓN
 const CLAVE_ADMIN = "GedeonDev21!";
 
 export default function QuizApp() {
@@ -114,20 +114,94 @@ export default function QuizApp() {
   );
   const [cargandoDirectorio, setCargandoDirectorio] = useState(false);
 
-  // Estados para alertas y modales
+  // Estados Generales
   const [mostrarAlerta, setMostrarAlerta] = useState(false);
-  const [mostrarModalClave, setMostrarModalClave] = useState(false);
   const [mostrarInfo, setMostrarInfo] = useState(false);
-  const [claveIngresada, setClaveIngresada] = useState("");
-  const [errorClave, setErrorClave] = useState(false);
+
+  // Estados de Administración Unificados
+  const [sistemaBloqueado, setSistemaBloqueado] = useState(false);
+  const [mostrarAlertaBloqueo, setMostrarAlertaBloqueo] = useState(false);
+  const [accionAdmin, setAccionAdmin] = useState<
+    "podio" | "bloquear" | "desbloquear" | ""
+  >("");
+  const [mostrarModalAdmin, setMostrarModalAdmin] = useState(false);
+  const [claveAdmin, setClaveAdmin] = useState("");
+  const [errorClaveAdmin, setErrorClaveAdmin] = useState(false);
+  const [mensajeExitoAdmin, setMensajeExitoAdmin] = useState("");
 
   // Estados para el podio en vivo
   const [mensajeAnalisis, setMensajeAnalisis] = useState("");
   const [podioGanadores, setPodioGanadores] = useState<Participante[]>([]);
-
   const [preguntasJuego, setPreguntasJuego] = useState<PreguntaJuego[]>([]);
 
+  // Verificar al cargar la página si el sistema está bloqueado
+  useEffect(() => {
+    const verificarBloqueo = async () => {
+      const { data } = await supabase
+        .from("participantes")
+        .select("nombre")
+        .eq("nombre", "_BLOQUEO_SISTEMA_");
+
+      if (data && data.length > 0) {
+        setSistemaBloqueado(true);
+      }
+    };
+    verificarBloqueo();
+  }, []);
+
+  // Función genérica para abrir el Modal de Administración
+  const abrirModalAdmin = (accion: "podio" | "bloquear" | "desbloquear") => {
+    setAccionAdmin(accion);
+    setClaveAdmin("");
+    setErrorClaveAdmin(false);
+    setMostrarModalAdmin(true);
+  };
+
+  // Función que procesa la clave y ejecuta la acción seleccionada
+  const ejecutarAccionAdmin = async () => {
+    if (claveAdmin !== CLAVE_ADMIN) {
+      setErrorClaveAdmin(true);
+      return;
+    }
+    setMostrarModalAdmin(false);
+
+    if (accionAdmin === "podio") {
+      revelarGanadores();
+    } else if (accionAdmin === "bloquear") {
+      const tiempoBloqueo = 35 * 60 * 1000; // 35 minutos
+      const { error } = await supabase
+        .from("participantes")
+        .insert([
+          { nombre: "_BLOQUEO_SISTEMA_", puntaje: 0, tiempo_ms: tiempoBloqueo },
+        ]);
+      if (!error) {
+        setSistemaBloqueado(true);
+        setMensajeExitoAdmin(
+          "Se ha cerrado el registro. Ya no se admiten más respuestas.",
+        );
+      } else {
+        console.error("Error al bloquear:", error);
+      }
+    } else if (accionAdmin === "desbloquear") {
+      const { error } = await supabase
+        .from("participantes")
+        .delete()
+        .eq("nombre", "_BLOQUEO_SISTEMA_");
+      if (!error) {
+        setSistemaBloqueado(false);
+        setMensajeExitoAdmin("Se ha reabierto el registro de participantes.");
+      } else {
+        console.error("Error al desbloquear:", error);
+      }
+    }
+  };
+
   const iniciarJuego = () => {
+    if (sistemaBloqueado) {
+      setMostrarAlertaBloqueo(true);
+      return;
+    }
+
     if (!nombre.trim()) {
       setMostrarAlerta(true);
       return;
@@ -193,7 +267,8 @@ export default function QuizApp() {
 
     const { data, error } = await supabase
       .from("participantes")
-      .select("nombre, tiempo_ms");
+      .select("nombre, tiempo_ms")
+      .neq("nombre", "_BLOQUEO_SISTEMA_"); // Excluir al fantasma
 
     if (!error && data) {
       const participantesMezclados = [...data];
@@ -211,28 +286,14 @@ export default function QuizApp() {
     setCargandoDirectorio(false);
   };
 
-  const abrirModalPodio = () => {
-    setClaveIngresada("");
-    setErrorClave(false);
-    setMostrarModalClave(true);
-  };
-
-  const validarClaveYRevelar = () => {
-    if (claveIngresada === CLAVE_ADMIN) {
-      setMostrarModalClave(false);
-      revelarGanadores();
-    } else {
-      setErrorClave(true);
-    }
-  };
-
   const revelarGanadores = async () => {
     setEtapa("podio");
-    setMensajeAnalisis("Conectando con la base de datos");
+    setMensajeAnalisis("Conectando con la base de datos...");
 
     const { data, error } = await supabase
       .from("participantes")
-      .select("nombre, puntaje, tiempo_ms, creado_en");
+      .select("nombre, puntaje, tiempo_ms, creado_en")
+      .neq("nombre", "_BLOQUEO_SISTEMA_"); // Excluir al fantasma del podio
 
     if (!error && data) {
       const ganadoresOrdenados = data.sort((a, b) => {
@@ -246,19 +307,22 @@ export default function QuizApp() {
       setPodioGanadores(ganadoresOrdenados.slice(0, 3));
     }
 
-    setTimeout(() => setMensajeAnalisis("Analizando los Puntajes"), 2000);
+    setTimeout(() => setMensajeAnalisis("Analizando los Puntajes..."), 2000);
     setTimeout(
-      () => setMensajeAnalisis("Calculando tiempos de respuesta"),
+      () => setMensajeAnalisis("Calculando tiempos de respuesta..."),
       4000,
     );
-    setTimeout(() => setMensajeAnalisis("Desempatando registros"), 6000);
-    setTimeout(() => setMensajeAnalisis("Develando lista de jugadores"), 8000);
+    setTimeout(() => setMensajeAnalisis("Desempatando registros..."), 6000);
+    setTimeout(
+      () => setMensajeAnalisis("Develando lista de jugadores..."),
+      8000,
+    );
     setTimeout(() => setMensajeAnalisis(""), 10000);
   };
 
   return (
     <main className="min-h-[100dvh] bg-linear-to-br from-[#f6eedf] via-[#e8dcc6] to-[#92c5e9] flex flex-col relative overflow-x-hidden">
-      {/* Botón flotante de Información (Solo en la pantalla de inicio) */}
+      {/* Botón flotante de Información */}
       {etapa === "inicio" && (
         <button
           onClick={() => setMostrarInfo(true)}
@@ -297,7 +361,6 @@ export default function QuizApp() {
                     más rápido posible.
                   </p>
                 </div>
-
                 <div>
                   <h3 className="font-black text-base text-[#0b1f3a] uppercase mb-1">
                     ¿Cómo se elige a los ganadores?
@@ -327,7 +390,6 @@ export default function QuizApp() {
                     </li>
                   </ul>
                 </div>
-
                 <div>
                   <h3 className="font-black text-base text-[#0b1f3a] uppercase mb-1">
                     Política de Privacidad
@@ -358,9 +420,9 @@ export default function QuizApp() {
                     </li>
                   </ul>
                 </div>
-
                 <p className="text-center text-xs text-[#0b1f3a]/60 mt-4 italic font-bold">
-                  Desarrollado con ❤️ por Ariel Arcentales para el Club Gedeón.
+                  Desarrollado con ❤️ por Dev Ariel Arcentales para el Club
+                  Gedeón.
                 </p>
               </div>
 
@@ -400,37 +462,78 @@ export default function QuizApp() {
           </div>
         )}
 
-        {/* Modal: Clave de Administrador */}
-        {mostrarModalClave && (
+        {/* Modal: Usuario intentando entrar con sistema bloqueado */}
+        {mostrarAlertaBloqueo && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b1f3a]/70 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.8, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: -20 }}
-              className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-[8px_8px_0px_#4ade80] border-4 border-[#0b1f3a] text-center relative"
+              className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-[8px_8px_0px_#dc2626] border-4 border-[#0b1f3a] text-center relative"
             >
-              <div className="text-5xl mb-4">🔐</div>
+              <div className="text-5xl mb-4 transform -rotate-6">⏱️</div>
               <h2 className="text-2xl font-black text-[#0b1f3a] uppercase tracking-tighter mb-2">
-                Acceso Restringido
+                ¡Tiempo Agotado!
+              </h2>
+              <p className="text-[#0b1f3a]/80 font-bold mb-6">
+                El registro de participantes ha finalizado. ¡Atento a los
+                resultados en el programa!
+              </p>
+              <button
+                onClick={() => setMostrarAlertaBloqueo(false)}
+                className="w-full py-3 bg-[#dc2626] text-white border-4 border-[#0b1f3a] text-lg font-black rounded-xl shadow-[4px_4px_0px_#0b1f3a] hover:translate-y-[2px] active:translate-y-[4px] active:shadow-none transition-all uppercase tracking-wider"
+              >
+                Entendido
+              </button>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal MAESTRO de Administración (Podio, Bloquear, Desbloquear) */}
+        {mostrarModalAdmin && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b1f3a]/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -20 }}
+              className={`w-full max-w-sm bg-white p-8 rounded-3xl border-4 border-[#0b1f3a] text-center relative ${accionAdmin === "bloquear" ? "shadow-[8px_8px_0px_#dc2626]" : "shadow-[8px_8px_0px_#4ade80]"}`}
+            >
+              <div className="text-5xl mb-4">
+                {accionAdmin === "podio"
+                  ? "🔐"
+                  : accionAdmin === "bloquear"
+                    ? "🛑"
+                    : "🔓"}
+              </div>
+              <h2 className="text-2xl font-black text-[#0b1f3a] uppercase tracking-tighter mb-2">
+                {accionAdmin === "podio"
+                  ? "Acceso Restringido"
+                  : accionAdmin === "bloquear"
+                    ? "¿Bloquear Sistema?"
+                    : "¿Desbloquear Sistema?"}
               </h2>
               <p className="text-[#0b1f3a]/80 font-bold mb-6 text-sm">
-                Ingresa la clave para revelar el podio oficial.
+                {accionAdmin === "podio"
+                  ? "Ingresa la clave para revelar el podio oficial."
+                  : accionAdmin === "bloquear"
+                    ? "Ingresa la clave maestra para cerrar el registro."
+                    : "Ingresa la clave maestra para reabrir el registro."}
               </p>
 
               <input
                 type="password"
-                placeholder="Contraseña"
-                value={claveIngresada}
+                placeholder="Contraseña..."
+                value={claveAdmin}
                 onChange={(e) => {
-                  setClaveIngresada(e.target.value);
-                  setErrorClave(false);
+                  setClaveAdmin(e.target.value);
+                  setErrorClaveAdmin(false);
                 }}
-                onKeyDown={(e) => e.key === "Enter" && validarClaveYRevelar()}
-                className="w-full p-4 mb-2 rounded-xl bg-[#f6eedf] border-2 border-[#0b1f3a] text-[#0b1f3a] font-black text-center text-lg focus:outline-none focus:ring-4 focus:ring-[#4ade80]/50 transition-all tracking-widest"
+                onKeyDown={(e) => e.key === "Enter" && ejecutarAccionAdmin()}
+                className={`w-full p-4 mb-2 rounded-xl bg-[#f6eedf] border-2 border-[#0b1f3a] text-[#0b1f3a] font-black text-center text-lg focus:outline-none focus:ring-4 transition-all tracking-widest ${accionAdmin === "bloquear" ? "focus:ring-[#dc2626]/50" : "focus:ring-[#4ade80]/50"}`}
               />
 
               <div className="h-6 mb-2 flex items-center justify-center">
-                {errorClave && (
+                {errorClaveAdmin && (
                   <p className="text-[#dc2626] font-bold text-sm animate-bounce">
                     Clave incorrecta
                   </p>
@@ -439,18 +542,48 @@ export default function QuizApp() {
 
               <div className="flex gap-3 mt-2">
                 <button
-                  onClick={() => setMostrarModalClave(false)}
+                  onClick={() => setMostrarModalAdmin(false)}
                   className="flex-1 py-3 bg-[#e8dcc6] text-[#0b1f3a] border-2 border-[#0b1f3a] text-sm font-black rounded-xl shadow-[4px_4px_0px_#0b1f3a] hover:translate-y-[2px] transition-all uppercase"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={validarClaveYRevelar}
-                  className="flex-1 py-3 bg-[#4ade80] text-[#0b1f3a] border-2 border-[#0b1f3a] text-sm font-black rounded-xl shadow-[4px_4px_0px_#0b1f3a] hover:translate-y-[2px] transition-all uppercase"
+                  onClick={ejecutarAccionAdmin}
+                  className={`flex-1 py-3 text-white border-2 border-[#0b1f3a] text-sm font-black rounded-xl shadow-[4px_4px_0px_#0b1f3a] hover:translate-y-[2px] transition-all uppercase ${accionAdmin === "bloquear" ? "bg-[#dc2626]" : "bg-[#4ade80]"}`}
                 >
-                  Ingresar
+                  {accionAdmin === "podio"
+                    ? "Ingresar"
+                    : accionAdmin === "bloquear"
+                      ? "Bloquear"
+                      : "Desbloquear"}
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal: Éxito de Acción de Administrador (Verde) */}
+        {mensajeExitoAdmin && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b1f3a]/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -20 }}
+              className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-[8px_8px_0px_#4ade80] border-4 border-[#0b1f3a] text-center relative"
+            >
+              <div className="text-5xl mb-4">✅</div>
+              <h2 className="text-2xl font-black text-[#0b1f3a] uppercase tracking-tighter mb-2">
+                Operación Exitosa
+              </h2>
+              <p className="text-[#0b1f3a]/80 font-bold mb-6">
+                {mensajeExitoAdmin}
+              </p>
+              <button
+                onClick={() => setMensajeExitoAdmin("")}
+                className="w-full py-3 bg-[#4ade80] text-[#0b1f3a] border-4 border-[#0b1f3a] text-lg font-black rounded-xl shadow-[4px_4px_0px_#0b1f3a] hover:translate-y-[2px] active:translate-y-[4px] active:shadow-none transition-all uppercase tracking-wider"
+              >
+                Entendido
+              </button>
             </motion.div>
           </div>
         )}
@@ -519,17 +652,22 @@ export default function QuizApp() {
                   Participantes
                 </button>
                 <button
-                  onClick={abrirModalPodio}
+                  onClick={() => abrirModalAdmin("podio")}
                   className="flex-1 bg-[#4ade80] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-xs sm:text-sm uppercase tracking-widest py-3 px-2 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform -rotate-1 hover:rotate-1 transition-all active:translate-y-[2px]"
                 >
                   Ganadores
                 </button>
               </div>
 
+              {/* LOGO DE CONQUISTADORES (Botón oculto Administración) */}
               <img
                 src="/conquis.png"
                 alt="Conquistadores"
-                className="w-24 sm:w-28 mt-8 drop-shadow-xl"
+                onDoubleClick={() =>
+                  abrirModalAdmin(sistemaBloqueado ? "desbloquear" : "bloquear")
+                }
+                title="Administración"
+                className="w-24 sm:w-28 mt-8 drop-shadow-xl cursor-pointer"
               />
             </motion.div>
           )}
@@ -554,7 +692,7 @@ export default function QuizApp() {
                 <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-3 custom-scrollbar">
                   {cargandoDirectorio ? (
                     <p className="text-center font-bold text-[#0b1f3a]/60 animate-pulse py-10">
-                      Cargando datos
+                      Cargando datos...
                     </p>
                   ) : listaParticipantes.length === 0 ? (
                     <p className="text-center font-bold text-[#0b1f3a]/60 py-10">
@@ -623,7 +761,7 @@ export default function QuizApp() {
                     className="text-4xl font-black text-[#0b1f3a] mb-8 uppercase"
                     style={{ textShadow: "2px 2px 0px #facc15" }}
                   >
-                    Podio Oficial
+                    🏆 Podio Oficial 🏆
                   </h2>
 
                   <div className="flex flex-col gap-4">
@@ -832,7 +970,6 @@ export default function QuizApp() {
                   </p>
                 </div>
 
-                {/* Nuevo mensaje sobre la revelación en el programa JA */}
                 <div className="mt-4 mb-6 p-4 bg-[#f6eedf] border-2 border-[#0b1f3a] rounded-xl shadow-[4px_4px_0px_#0b1f3a]">
                   <p className="text-[#0b1f3a] font-bold text-sm">
                     Los ganadores oficiales se revelarán durante el programa JA.
@@ -842,7 +979,7 @@ export default function QuizApp() {
 
                 {isSubmitting ? (
                   <div className="inline-block px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold animate-pulse">
-                    Guardando resultado
+                    Guardando resultado...
                   </div>
                 ) : (
                   <div className="inline-block px-4 py-2 bg-[#4ade80] text-[#0b1f3a] border-2 border-[#0b1f3a] shadow-[2px_2px_0px_#0b1f3a] rounded-lg font-bold">
@@ -851,7 +988,6 @@ export default function QuizApp() {
                 )}
               </div>
 
-              {/* Botón para ver los participantes en lugar de los ganadores */}
               <button
                 onClick={verDirectorio}
                 className="mt-6 w-[80%] bg-[#d76118] border-4 border-[#0b1f3a] text-[#0b1f3a] font-black text-sm uppercase tracking-widest py-3 px-6 rounded-2xl shadow-[4px_4px_0px_#0b1f3a] transform rotate-2 hover:-rotate-1 transition-all active:translate-y-[2px]"
