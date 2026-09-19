@@ -761,7 +761,7 @@ export default function QuizApp() {
                     className="text-4xl font-black text-[#0b1f3a] mb-8 uppercase"
                     style={{ textShadow: "2px 2px 0px #facc15" }}
                   >
-                    🏆 Podio Oficial 🏆
+                    Podio Oficial
                   </h2>
 
                   <div className="flex flex-col gap-4">
