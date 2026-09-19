@@ -62,7 +62,7 @@ const PREGUNTAS = [
   },
   {
     texto: "¿En qué año fue fundado oficialmente nuestro Club Gedeón?",
-    opciones: ["1997", "1987", "2005"],
+    opciones: ["1997", "1989", "2003"],
     correcta: 1,
   },
   {
